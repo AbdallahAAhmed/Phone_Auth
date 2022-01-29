@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:map/business_logic/cubit/phone_auth/phone_auth_cubit.dart';
 import 'package:map/constants/my_colors.dart';
 import 'package:map/constants/route_strings.dart';
 
@@ -99,12 +101,24 @@ class LoginScreen extends StatelessWidget {
     return flag;
   }
 
+  Future<void> _register(BuildContext context) async {
+    if (!_phoneFormKey.currentState!.validate()) {
+      Navigator.pop(context); // that's to close the loading
+      return;
+    } else {
+      Navigator.pop(context); // that's to close the loading
+      _phoneFormKey.currentState!.save();
+      BlocProvider.of<PhoneAuthCubit>(context).submitPhoneNumber(phoneNumber);
+    }
+  }
+
   Widget _buildNextButton(BuildContext context) {
     return Align(
       alignment: Alignment.centerRight,
       child: ElevatedButton(
         onPressed: () {
-          Navigator.pushNamed(context, otpScreen);
+          showProgressIndicator(context);
+          _register(context);
         },
         child: const Text(
           'Next',
@@ -119,6 +133,57 @@ class LoginScreen extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
       ),
+    );
+  }
+
+  void showProgressIndicator(BuildContext context) {
+    AlertDialog alertDialog = const AlertDialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      content: Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+        ),
+      ),
+    );
+
+    showDialog(
+        context: context,
+        barrierDismissible:
+            false, // if click out side dialog, can't dismissible
+        barrierColor: Colors.white.withAlpha(0),
+        builder: (context) {
+          return alertDialog;
+        });
+  }
+
+  Widget _buildPhoneNumberSubmitedBloc() {
+    return BlocListener<PhoneAuthCubit, PhoneAuthState>(
+      listenWhen: (previous, current) {
+        return previous != current;
+      },
+      listener: (context, state) {
+        if (state is Loading) {
+          return showProgressIndicator(context);
+        }
+        if (state is PhoneNumberSubmitted) {
+          Navigator.pop(context); // that's to close the loading
+          Navigator.of(context).pushNamed(otpScreen, arguments: phoneNumber);
+        }
+
+        if (state is ErrorOccurred) {
+          Navigator.pop(context); // that's to close the loading
+          String errorMsg = (state).errorMsg;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Colors.black,
+            ),
+          );
+        }
+      },
+      child: Container(),
     );
   }
 
@@ -140,6 +205,7 @@ class LoginScreen extends StatelessWidget {
                   _buildPhoneFormField(),
                   const SizedBox(height: 60),
                   _buildNextButton(context),
+                  _buildPhoneNumberSubmitedBloc(),
                 ],
               ),
             ),
