@@ -1,4 +1,4 @@
-# Phone Auh
+# Phone Auth
 
 A new Flutter project.
 
